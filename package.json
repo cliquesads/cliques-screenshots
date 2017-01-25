@@ -1,0 +1,22 @@
+{
+  "name": "cliques-screenshot",
+  "version": "1.0.0",
+  "description": "Cliques screenshot to capture screenshots for websites using cliques bidding system",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "screenshots",
+    "phantomjs",
+    "web",
+    "crawler",
+    "pub/sub"
+  ],
+  "author": "Chuoxian Yang",
+  "license": "ISC",
+  "dependencies": {
+    "bluebird": "^3.4.7",
+    "phantom": "^4.0.0"
+  }
+}
