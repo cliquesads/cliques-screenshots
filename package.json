@@ -1,10 +1,10 @@
 {
-  "name": "cliques-screenshot",
-  "version": "1.0.0",
+  "name": "cliques-screenshots",
+  "version": "0.1.0",
   "description": "Cliques screenshot to capture screenshots for websites using cliques bidding system",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js"
   },
   "keywords": [
     "screenshots",
@@ -14,8 +14,17 @@
     "pub/sub"
   ],
   "author": "Chuoxian Yang",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
-    "phantom": "^4.0.0"
+    "@cliques/cliques-node-utils": "^0.2.42",
+    "mongoose-api-query": "^0.1.1-pre",
+    "phantom": "^3.2.1"
+  },
+  "engines": {
+    "node": "5.5.x"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cliquesads/cliques-screenshots.git"
   }
 }
