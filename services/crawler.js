@@ -2,14 +2,14 @@
 'use strict';
 
 const phantom = require('phantom');
-
-var screenshotImageFolder = 'screenshots';
-var clipWidth = 1024;
-var clipHeight = 768;
-
+const config = require('config');
 
 function captureScreen(url, appRoot) {
     var phantomInstance = null;
+    var screenshotImageFolder = config.get('Screenshots.screenshotImageFolder');
+    var clipWidth = config.get('Screenshots.clipWidth');
+    var clipHeight = config.get('Screenshots.clipHeight');
+
     phantom.create([
             '--ignore-ssl-errors=yes',
             '--load-images=yes'
