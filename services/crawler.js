@@ -2,7 +2,11 @@
 'use strict';
 
 const phantom = require('phantom');
-const constants = require('../config/constants.js');
+
+var screenshotImageFolder = 'screenshots';
+var clipWidth = 1024;
+var clipHeight = 768;
+
 
 function captureScreen(url, appRoot) {
     var phantomInstance = null;
@@ -18,13 +22,13 @@ function captureScreen(url, appRoot) {
             return page.property('clipRect', {
                     top: 0,
                     left: 0,
-                    width: constants.clipWidth,
-                    height: constants.clipHeight,
+                    width: clipWidth,
+                    height: clipHeight,
                 })
                 .then(() => page.open(url))
                 .then(() => {
                     var screenshotFileName = url.replace('http://', '').replace('https://', '');
-                    page.render(`${appRoot}/${constants.screenshotImageFolder}/${screenshotFileName}.png`);
+                    page.render(`${appRoot}/${screenshotImageFolder}/${screenshotFileName}.png`);
                     return phantomInstance.exit();
                 });
         })
