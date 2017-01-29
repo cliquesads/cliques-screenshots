@@ -4,16 +4,17 @@ Cliques Screenshots contains a nodejs app that subscribe to captureScreenshot me
 ## Folder structure
 
 	.
-	├── README.md
+	├── README.md - documentation
 	├── bq_config.json
 	├── bq_config_dev.json
-	├── config -> ../cliques-config
-	├── index.js
+	├── config -> ../cliques-config - config folder
+	├── index.js - app main entry
 	├── lib
-	│   ├── logger.js
-	│   └── screenshots_logging.js
-	├── package.json
-	├── screenshots
+	│   ├── logger.js - app logger
+	│   └── screenshots_logging.js - screenshot logging functionalities
+	├── package.json - dependencies
+	├── screenshots - the folder where screenshot images saved
 	├── services
-	│   └── crawler.js
-	└── setup.sh
+	│   └── crawler.js - the phantomjs screenshot rendering service
+	└── setup.sh - shell script to set up app
+

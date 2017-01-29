@@ -30,7 +30,7 @@ screenshotPubSub.subscriptions.captureScreenshot(function(err, subscription) {
 	subscription.on('message', function(message) {
 		var websiteURL = message.data;
 		crawler.captureScreen(websiteURL, appRoot);
-		logger.info('Received captureScreenshot message for website: ' + websiteURL);
+		logger.info(`Received captureScreenshot message for website: ${websiteURL}`);
 	});
 	subscription.on('error', function(err) {
 		logger.error('Error subscribing to captureScreenshot topic, will not be able to receive signals until this is fixed');	
