@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # usage text visible when --help flag passed in
-usage="$(basename "$0") -- Sets up all global packages necessary to deploy the adserver, including Node & PM2 using environment set in config/adserver.cfg.
+usage="$(basename "$0") -- Sets up all global packages necessary to deploy the adserver, including Node, PM2 & Redis using environment set in config/adserver.cfg.
 
 where:
     --help  show this help text"
@@ -30,6 +30,9 @@ fi
 
 # Now get proper environment variables for global package versions, etc.
 source ./config/environments/adserver_environment.cfg
+
+# Set up redis-server first
+./setup-redis.sh
 
 #download NVM and install NVM & node
 curl https://raw.githubusercontent.com/creationix/nvm/v"$NVM_VERSION"/install.sh | NVM_DIR=$HOME/repositories/cliques-adserver/.nvm bash
