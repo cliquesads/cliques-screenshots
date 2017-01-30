@@ -1,4 +1,5 @@
 node_modules
+dump.rdb
 screenshots
 **/.DS_Store
 npm-debug.log

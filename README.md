@@ -18,3 +18,20 @@ Cliques Screenshots contains a nodejs app that subscribe to captureScreenshot me
 	│   └── crawler.js - the phantomjs screenshot rendering service
 	└── setup.sh - shell script to set up app
 
+## Setup & Dependencies
+Key dependency is Redis v2.8 or greater. To install & run redis (current version 3.0.1), run:
+```
+$./setup_redis.sh
+```
+To set up a new machine (Debian or Ubuntu) for the first time, run:
+```
+$./setup.sh
+```
+
+## Deployment
+Once your machine is all setup and Redis is running, you can deploy:
+```
+$ git pull
+$ ./deploy_screenshots.sh
+```
+
