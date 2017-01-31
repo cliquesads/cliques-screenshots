@@ -29,9 +29,9 @@ screenshotPubSub.subscriptions.createScreenshot(function(err, subscription) {
     if (err) throw new Error('Error creating subscription to createScreenshot topic: ' + err);
     // message listener
     subscription.on('message', function(message) {
-        var websiteURL = message.data;
-        crawler.captureScreen(websiteURL, appRoot);
-        logger.info(`Received createScreenshot message for website: ${websiteURL}`);
+        var messageContent = message.data;
+        crawler.captureScreen(messageContent, appRoot);
+        logger.info(`Received createScreenshot message with info: ${messageContent}`);
     });
     subscription.on('error', function(err) {
         logger.error('Error subscribing to createScreenshot topic, will not be able to receive signals until this is fixed');
