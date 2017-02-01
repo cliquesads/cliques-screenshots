@@ -18,7 +18,9 @@
   "dependencies": {
     "@cliques/cliques-node-utils": "^0.2.42",
     "config": "^1.12.0",
+    "gcloud": "^0.27.0",
     "mongoose-api-query": "^0.1.1-pre",
+    "node-uuid": "^1.4.7",
     "phantom": "^3.2.1"
   },
   "engines": {
