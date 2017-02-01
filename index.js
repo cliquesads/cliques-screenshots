@@ -4,6 +4,9 @@
 var node_utils = require('@cliques/cliques-node-utils'),
     ScreenshotPubSub = node_utils.google.pubsub.ScreenshotPubSub;
 var logger = require('./lib/logger');
+var path = require('path');
+var appRoot = path.resolve(__dirname);
+var crawler = require('./lib/crawler.js');
 
 /* ---------------- SCREENSHOT PUBSUB INSTANCE & LISTENERS ----------------- */
 
@@ -20,10 +23,6 @@ if (process.env.NODE_ENV == 'local-test') {
     pubsub_options = { projectId: 'mimetic-codex-781' };
 }
 var screenshotPubSub = new ScreenshotPubSub(pubsub_options);
-
-var path = require('path');
-var appRoot = path.resolve(__dirname);
-var crawler = require('./lib/crawler.js');
 
 screenshotPubSub.subscriptions.createScreenshot(function(err, subscription) {
     if (err) throw new Error('Error creating subscription to createScreenshot topic: ' + err);
