@@ -1,6 +1,6 @@
 config
 node_modules
 dump.rdb
-screenshots
+screenshots/**/*.png
 **/.DS_Store
 npm-debug.log
