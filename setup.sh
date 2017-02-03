@@ -29,7 +29,7 @@ else
 fi
 
 # Now get proper environment variables for global package versions, etc.
-source ./config/environments/adserver_environment.cfg
+source ./config/environments/screenshot_environment.cfg
 
 # Set up redis-server first
 ./setup-redis.sh
