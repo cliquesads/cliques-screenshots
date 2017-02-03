@@ -35,7 +35,7 @@ source ./config/environments/adserver_environment.cfg
 ./setup-redis.sh
 
 #download NVM and install NVM & node
-curl https://raw.githubusercontent.com/creationix/nvm/v"$NVM_VERSION"/install.sh | NVM_DIR=$HOME/repositories/cliques-adserver/.nvm bash
+curl https://raw.githubusercontent.com/creationix/nvm/v"$NVM_VERSION"/install.sh | NVM_DIR=$HOME/repositories/cliques-screenshots/.nvm bash
 source .nvm/nvm.sh
 nvm install $NODE_VERSION
 
