@@ -29,6 +29,8 @@ screenshotPubSub.subscriptions.createScreenshot(function(err, subscription) {
     // message listener
     subscription.on('message', function(message) {
         var captureScreenInfo = message.attributes;
+        console.log('***************************** captureScreenInfo(message attributes): ')
+        console.log(captureScreenInfo);
         crawler.captureScreen(captureScreenInfo, appRoot);
         logger.info(`Received createScreenshot message to scrape website: ${captureScreenInfo.websiteURL}`);
     });
