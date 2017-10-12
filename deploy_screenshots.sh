@@ -42,10 +42,11 @@ done
 # END environment parsing
 
 # Set proper environment variables now that env is set
+folder_name=${PWD##*/}
 if [ "$env" == "production" ]; then
-    processname='screenshots'
+    processname=$folder_name
 else
-    processname='screenshots_dev'
+    processname=$folder_name"_dev"
 fi
 
 source activate_env.sh -e $env
@@ -62,13 +63,29 @@ fi
 # run npm install to install any new dependencies
 npm install
 
-if [ ! -d $HOME"/repositories/cliques-config" ]; then
+# decide which config folder to use by checking current folder name
+if [[ $folder_name == *"cliques"* ]]; then
+  # for cliques-screenshots
+  if [ ! -d $HOME"/repositories/cliques-config" ]; then
     git clone git@github.com:cliquesads/cliques-config.git ../cliques-config
     ln -s ../cliques-config config
-else
+  else
     cd ../cliques-config
     git pull
     cd ../cliques-screenshots
+  fi
+fi
+
+if [[ $folder_name == *"smartertravel"* ]]; then
+  # for smartertravel-screenshots
+  if [ ! -d $HOME"/repositories/smartertravel-config" ]; then
+    git clone git@github.com:cliquesads/smartertravel-config.git ../smartertravel-config
+    ln -s ../smartertravel-config config
+  else
+    cd ../smartertravel-config
+    git pull
+    cd ../smartertravel-screenshots
+  fi
 fi
 
 running=$(pm2 list -m | grep "$processname")
