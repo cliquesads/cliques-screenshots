@@ -5,6 +5,7 @@ var node_utils = require('@cliques/cliques-node-utils'),
     ScreenshotPubSub = node_utils.google.pubsub.ScreenshotPubSub;
 var logger = require('./lib/logger');
 var path = require('path');
+var config = require('config');
 var appRoot = path.resolve(__dirname);
 var crawler = require('./lib/crawler.js');
 
@@ -12,19 +13,21 @@ var crawler = require('./lib/crawler.js');
 
 // Here's where the Controller methods actually get hooked to signals from
 // the outside world via Google PubSub api.
+var projectId = config.get('Screenshots.google.projectId');
+var topic = config.get('Screenshots.google.topic');
 
 var pubsub_options = {};
 if (process.env.NODE_ENV == 'local-test') {
     pubsub_options = {
-        projectId: 'mimetic-codex-781',
+        projectId: projectId,
         test: true
     };
 } else {
-    pubsub_options = { projectId: 'mimetic-codex-781' };
+    pubsub_options = { projectId: projectId };
 }
 var screenshotPubSub = new ScreenshotPubSub(pubsub_options);
 
-screenshotPubSub.subscriptions.createScreenshot(function(err, subscription) {
+screenshotPubSub.subscriptions[topic](function(err, subscription) {
     if (err) throw new Error('Error creating subscription to createScreenshot topic: ' + err);
     // message listener
     subscription.on('message', function(message) {
