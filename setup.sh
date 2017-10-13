@@ -17,16 +17,35 @@ fi
 sudo apt-get update
 sudo apt-get install gcc make build-essential
 
+folder_name=${PWD##*/}
 #clone config repo and make symlink
-if [ ! -d "../cliques-config" ]; then
+# decide which config folder to use by checking current folder name
+if [[ $folder_name == *"cliques"* ]]; then
+  # for cliques-screenshots
+  if [ ! -d $HOME"/repositories/cliques-config" ]; then
     git clone git@github.com:cliquesads/cliques-config.git ../cliques-config
     ln -s ../cliques-config config
-else
+  else
     cd ../cliques-config
     git pull
     cd ../cliques-screenshots
     ln -s ../cliques-config config
+  fi
 fi
+
+if [[ $folder_name == *"smartertravel"* ]]; then
+  # for smartertravel-screenshots
+  if [ ! -d $HOME"/repositories/smartertravel-config" ]; then
+    git clone git@github.com:cliquesads/smartertravel-config.git ../smartertravel-config
+    ln -s ../smartertravel-config config
+  else
+    cd ../smartertravel-config
+    git pull
+    cd ../smartertravel-screenshots
+    ln -s ../smartertravel-config config
+  fi
+fi
+
 
 # Now get proper environment variables for global package versions, etc.
 source ./config/environments/screenshot_environment.cfg
@@ -35,7 +54,13 @@ source ./config/environments/screenshot_environment.cfg
 ./setup-redis.sh
 
 #download NVM and install NVM & node
-curl https://raw.githubusercontent.com/creationix/nvm/v"$NVM_VERSION"/install.sh | NVM_DIR=$HOME/repositories/cliques-screenshots/.nvm bash
+if [[ $folder_name == *"cliques"* ]]; then
+  curl https://raw.githubusercontent.com/creationix/nvm/v"$NVM_VERSION"/install.sh | NVM_DIR=$HOME/repositories/cliques-screenshots/.nvm bash
+fi
+
+if [[ $folder_name == *"smartertravel"* ]]; then
+  curl https://raw.githubusercontent.com/creationix/nvm/v"$NVM_VERSION"/install.sh | NVM_DIR=$HOME/repositories/smartertravel-screenshots/.nvm bash
+fi
 source .nvm/nvm.sh
 nvm install $NODE_VERSION
 
