@@ -8,6 +8,7 @@ var path = require('path');
 var config = require('config');
 var appRoot = path.resolve(__dirname);
 var crawler = require('./lib/crawler.js');
+var dataStore = require('./lib/dataStore.js');
 
 /* ---------------- SCREENSHOT PUBSUB INSTANCE & LISTENERS ----------------- */
 
@@ -27,13 +28,36 @@ if (process.env.NODE_ENV == 'local-test') {
 }
 var screenshotPubSub = new ScreenshotPubSub(pubsub_options);
 
+var handleMessageLater = function() {
+    if (dataStore.messagePool.length === 0) {
+        // No unhandled message exists
+        return;
+    }
+    // There are at least 1 unhandled message, check 1 sec later to see if
+    // it is allowed to create phantomjs instance to capture screenshot,
+    // otherwise wait for another 1 sec before check again
+    setTimeout(function() {
+        if (dataStore.numberOfRunningPhantomInstances < dataStore.MAX_NUMBER_PHANTOM_INSTANCES) {
+            var earliestMessageInPool = dataStore.messagePool.shift();
+            crawler.captureScreen(earliestMessageInPool.attributes, appRoot);
+        } else {
+            handleMessageLater();
+        }
+    }, 1000);
+};
+
 screenshotPubSub.subscriptions[topic](function(err, subscription) {
     if (err) throw new Error('Error creating subscription to createScreenshot topic: ' + err);
     // message listener
     subscription.on('message', function(message) {
         var captureScreenInfo = message.attributes;
-        crawler.captureScreen(captureScreenInfo, appRoot);
         logger.info(`Received createScreenshot message to scrape website: ${captureScreenInfo.websiteUrl}`);
+        if (dataStore.numberOfRunningPhantomInstances < dataStore.MAX_NUMBER_PHANTOM_INSTANCES) {
+            crawler.captureScreen(captureScreenInfo, appRoot);
+        } else {
+            logger.info('Reached maximum allowed phantom instances, save message and handle it later');
+            dataStore.messagePool.push(message);
+        }
     });
     subscription.on('error', function(err) {
         logger.error('Error subscribing to createScreenshot topic, will not be able to receive signals until this is fixed');
