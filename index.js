@@ -39,6 +39,7 @@ var handleMessageLater = function() {
     setTimeout(function() {
         if (dataStore.numberOfRunningPhantomInstances < dataStore.MAX_NUMBER_PHANTOM_INSTANCES) {
             var earliestMessageInPool = dataStore.messagePool.shift();
+	    logger.info('Number of phantom instances: ' + dataStore.numberOfRunningPhantomInstances);
             crawler.captureScreen(earliestMessageInPool.attributes, appRoot);
         } else {
             handleMessageLater();
@@ -51,8 +52,9 @@ screenshotPubSub.subscriptions[topic](function(err, subscription) {
     // message listener
     subscription.on('message', function(message) {
         var captureScreenInfo = message.attributes;
-        logger.info(`Received createScreenshot message to scrape website: ${captureScreenInfo.websiteUrl}`);
+        logger.info(`Received createScreenshot message to scrape website: ${captureScreenInfo.websiteUrl}, pid: ${captureScreenInfo.pid}, crgId: ${captureScreenInfo.crgId}`);
         if (dataStore.numberOfRunningPhantomInstances < dataStore.MAX_NUMBER_PHANTOM_INSTANCES) {
+	    logger.info('Number of phantom instances: ' + dataStore.numberOfRunningPhantomInstances);
             crawler.captureScreen(captureScreenInfo, appRoot);
         } else {
             logger.info('Reached maximum allowed phantom instances, save message and handle it later');
