@@ -48,11 +48,11 @@ var handleMessageLater = function() {
 };
 
 screenshotPubSub.subscriptions[topic](function(err, subscription) {
-    if (err) throw new Error('Error creating subscription to createScreenshot topic: ' + err);
+    if (err) throw new Error('Error creating subscription to ' + topic + ' topic: ' + err);
     // message listener
     subscription.on('message', function(message) {
         var captureScreenInfo = message.attributes;
-        logger.info(`Received createScreenshot message to scrape website: ${captureScreenInfo.websiteUrl}, pid: ${captureScreenInfo.pid}, crgId: ${captureScreenInfo.crgId}`);
+        logger.info(`Received ${topic} message to scrape website: ${captureScreenInfo.websiteUrl}, pid: ${captureScreenInfo.pid}, crgId: ${captureScreenInfo.crgId}`);
         if (dataStore.numberOfRunningPhantomInstances < dataStore.MAX_NUMBER_PHANTOM_INSTANCES) {
 	    logger.info('Number of phantom instances: ' + dataStore.numberOfRunningPhantomInstances);
             crawler.captureScreen(captureScreenInfo, appRoot);
@@ -62,7 +62,7 @@ screenshotPubSub.subscriptions[topic](function(err, subscription) {
         }
     });
     subscription.on('error', function(err) {
-        logger.error('Error subscribing to createScreenshot topic, will not be able to receive signals until this is fixed');
+        logger.error('Error subscribing to ' + topic + ' topic, will not be able to receive signals until this is fixed');
         logger.error(err);
     });
 });
