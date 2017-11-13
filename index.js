@@ -8,13 +8,21 @@ var path = require('path');
 var config = require('config');
 var appRoot = path.resolve(__dirname);
 var crawler = require('./lib/crawler.js');
-var dataStore = require('./lib/dataStore.js');
 var promise = require('bluebird');
 var db = require('./lib/connections').EXCHANGE_CONNECTION;
 
 var redis = require('redis'),
     client = redis.createClient();
 promise.promisifyAll(redis.RedisClient.prototype);
+
+/**
+ * The allowed maximum number of phantomjs instances running concurrently 
+ */
+const MAX_NUMBER_PHANTOM_INSTANCES = 5;
+/**
+ * The number of currently running phantomjs instances
+ */
+var numberOfPhantoms = 0;
 
 
 /* ---------------- SCREENSHOT PUBSUB INSTANCE & LISTENERS ----------------- */
@@ -55,7 +63,7 @@ var EventEmitter = require('events');
 var emitter = new EventEmitter();
 // `FINISH` event will be emitted when a phantom instance exists
 emitter.on('FINISH', function() {
-    if (dataStore.numberOfPhantoms < dataStore.MAX_NUMBER_PHANTOM_INSTANCES) {
+    if (numberOfPhantoms < MAX_NUMBER_PHANTOM_INSTANCES) {
         // Retrieve a screenshot message from redis, 
         // after rpop command, the message will be removed from 
         // redis 'screenshot-message' list automatically
@@ -64,10 +72,10 @@ emitter.on('FINISH', function() {
             if (messageString) {
                 var fetchedMessage = parseScreenshotMessageFromRedis(messageString);
                 logger.info(`Message fetched and removed: ------ ${messageString}`);
-                dataStore.numberOfPhantoms ++;
+                numberOfPhantoms ++;
                 return crawler.captureScreen(fetchedMessage, appRoot, db)
                 .then(function() {
-                    dataStore.numberOfPhantoms --;
+                    numberOfPhantoms --;
                     logger.info(`Finished crawling for the following message: ${messageString}`);
                     emitter.emit('FINISH');
                 });
@@ -86,11 +94,11 @@ screenshotPubSub.subscriptions[topic](function(err, subscription) {
         var websiteInfo = message.attributes;
         var messageString = `websiteUrl:${websiteInfo.websiteUrl},pid:${websiteInfo.pid},crgId:${websiteInfo.crgId}`;
         logger.info(`Received ${topic} message to capture screenshot: ------ ${messageString}`);
-        if (dataStore.numberOfPhantoms < dataStore.MAX_NUMBER_PHANTOM_INSTANCES) {
-            dataStore.numberOfPhantoms ++;
+        if (numberOfPhantoms < MAX_NUMBER_PHANTOM_INSTANCES) {
+            numberOfPhantoms ++;
             return crawler.captureScreen(websiteInfo, appRoot, db)
             .then(function() {
-                dataStore.numberOfPhantoms --;
+                numberOfPhantoms --;
                 logger.info(`${messageString} FINISHED crawling`);
                 emitter.emit('FINISH'); 
             });
