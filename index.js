@@ -66,8 +66,8 @@ emitter.on('FINISH', function() {
     if (numberOfPhantoms < MAX_NUMBER_PHANTOM_INSTANCES) {
         // Retrieve a screenshot message from redis, 
         // after rpop command, the message will be removed from 
-        // redis 'screenshot-message' list automatically
-        return client.rpopAsync('screenshot-message')
+        // redis `${topic}` list automatically
+        return client.rpopAsync(`${topic}`)
         .then(function(messageString) {
             if (messageString) {
                 var fetchedMessage = parseScreenshotMessageFromRedis(messageString);
@@ -104,8 +104,8 @@ screenshotPubSub.subscriptions[topic](function(err, subscription) {
             });
         } else {
             logger.info(`Reached maximum allowed phantom instances, save the following message and handle it later: ------ ${messageString}`);
-            // Save screenshot message to redis in a LIST named `screenshot-message`
-            return client.lpushAsync('screenshot-message', `${messageString}`);
+            // Save screenshot message to redis in a LIST named `${topic}`
+            return client.lpushAsync(`${topic}`, `${messageString}`);
         }
     });
     subscription.on('error', function(err) {
