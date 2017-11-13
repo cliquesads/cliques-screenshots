@@ -11,8 +11,11 @@ var crawler = require('./lib/crawler.js');
 var dataStore = require('./lib/dataStore.js');
 var promise = require('bluebird');
 var db = require('./lib/connections').EXCHANGE_CONNECTION;
-var models = require('@cliques/cliques-node-utils').mongodb.models,
-    screenshotModels = new models.ScreenshotModels(db);
+
+var redis = require('redis'),
+    client = redis.createClient();
+promise.promisifyAll(redis.RedisClient.prototype);
+
 
 /* ---------------- SCREENSHOT PUBSUB INSTANCE & LISTENERS ----------------- */
 
@@ -32,35 +35,40 @@ if (process.env.NODE_ENV == 'local-test') {
 }
 var screenshotPubSub = new ScreenshotPubSub(pubsub_options);
 
+/**
+ * Screenshot message are saved in redis as a string with the following format:
+ * `websiteUrl:http://some-url.com,pid:123x56,crgId:7891b`. This function parses
+ * the string to an object
+ * @param messageString {String}
+ * @return messageObject {Object}
+ */ 
+function parseScreenshotMessageFromRedis(messageString) {
+    var arr = messageString.split(',');
+    var message = {};
+    message.websiteUrl = arr[0].substring('websiteUrl:'.length);
+    message.pid = arr[1].substring('pid:'.length);
+    message.crgId = arr[2].substring('crgid:'.length);
+    return message;
+}
+
 var EventEmitter = require('events');
 var emitter = new EventEmitter();
 // `FINISH` event will be emitted when a phantom instance exists
 emitter.on('FINISH', function() {
     if (dataStore.numberOfPhantoms < dataStore.MAX_NUMBER_PHANTOM_INSTANCES) {
-        var fetchedMessage = null;
-        var screenshotModels = new models.ScreenshotModels(db);
-        screenshotModels.ScreenshotMessage.promisifiedFindOne = promise.promisify(screenshotModels.ScreenshotMessage.findOne);
-        return screenshotModels.ScreenshotMessage.promisifiedFindOne()
-        .then(function(message) {
-            if (message) {
-                fetchedMessage = message;
-                // message fetched, remove from database immediately
-                screenshotModels.ScreenshotMessage.promisifiedRemove = promise.promisify(screenshotModels.ScreenshotMessage.remove);
-                return screenshotModels.ScreenshotMessage.promisifiedRemove(message)
-                .then(function() {
-                    logger.info(`Message fetched and removed: ------ ${JSON.stringify(fetchedMessage)}`);
-                });
-            } else {
-                return;
-            }
-        })
-        .then(function() {
-            if (fetchedMessage) {
+        // Retrieve a screenshot message from redis, 
+        // after rpop command, the message will be removed from 
+        // redis 'screenshot-message' list automatically
+        return client.rpopAsync('screenshot-message')
+        .then(function(messageString) {
+            if (messageString) {
+                var fetchedMessage = parseScreenshotMessageFromRedis(messageString);
+                logger.info(`Message fetched and removed: ------ ${messageString}`);
                 dataStore.numberOfPhantoms ++;
                 return crawler.captureScreen(fetchedMessage, appRoot, db)
                 .then(function() {
                     dataStore.numberOfPhantoms --;
-                    logger.info(`Finished crawling for the following message: ${JSON.stringify(fetchedMessage)}`);
+                    logger.info(`Finished crawling for the following message: ${messageString}`);
                     emitter.emit('FINISH');
                 });
             }
@@ -76,20 +84,20 @@ screenshotPubSub.subscriptions[topic](function(err, subscription) {
     // message listener
     subscription.on('message', function(message) {
         var websiteInfo = message.attributes;
-        logger.info(`Received ${topic} message to capture screenshot: ------ websiteUrl: ${websiteInfo.websiteUrl}, pid: ${websiteInfo.pid}, crgId: ${websiteInfo.crgId}`);
+        var messageString = `websiteUrl:${websiteInfo.websiteUrl},pid:${websiteInfo.pid},crgId:${websiteInfo.crgId}`;
+        logger.info(`Received ${topic} message to capture screenshot: ------ ${messageString}`);
         if (dataStore.numberOfPhantoms < dataStore.MAX_NUMBER_PHANTOM_INSTANCES) {
             dataStore.numberOfPhantoms ++;
             return crawler.captureScreen(websiteInfo, appRoot, db)
             .then(function() {
                 dataStore.numberOfPhantoms --;
-                logger.info(JSON.stringify(websiteInfo) + ' FINISHED crawling');
+                logger.info(`${messageString} FINISHED crawling`);
                 emitter.emit('FINISH'); 
             });
         } else {
-            logger.info(`Reached maximum allowed phantom instances, save the following message and handle it later: ------ websiteUrl: ${websiteInfo.websiteUrl}, pid: ${websiteInfo.pid}, crgId: ${websiteInfo.crgId}`);
-            var screenshotModels = new models.ScreenshotModels(db);
-            var newMessage = new screenshotModels.ScreenshotMessage(websiteInfo);
-            newMessage.save();
+            logger.info(`Reached maximum allowed phantom instances, save the following message and handle it later: ------ ${messageString}`);
+            // Save screenshot message to redis in a LIST named `screenshot-message`
+            return client.lpushAsync('screenshot-message', `${messageString}`);
         }
     });
     subscription.on('error', function(err) {
