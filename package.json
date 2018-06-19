@@ -1,6 +1,6 @@
 {
   "name": "cliques-screenshots",
-  "version": "0.2.0",
+  "version": "0.2.10",
   "description": "Cliques screenshot to capture screenshots for websites using cliques bidding system",
   "main": "server.js",
   "scripts": {
