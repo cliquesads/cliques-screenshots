@@ -16,17 +16,17 @@
   "author": "Chuoxian Yang",
   "license": "MIT",
   "dependencies": {
-    "@cliques/cliques-node-utils": "^0.9.60",
+    "@cliques/cliques-node-utils": "^0.9.72",
     "bluebird": "^3.4.7",
     "config": "^1.12.0",
-    "gcloud": "^0.27.0",
+    "google-cloud": "^0.57.0",
     "mongoose-api-query": "^0.1.1-pre",
     "node-uuid": "^1.4.7",
     "phantom": "^3.2.1",
     "uuid": "^3.0.1"
   },
   "engines": {
-    "node": "5.5.x"
+    "node": "8.9.x"
   },
   "repository": {
     "type": "git",
