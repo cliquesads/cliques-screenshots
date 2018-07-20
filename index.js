@@ -43,6 +43,46 @@ if (process.env.NODE_ENV == 'local-test') {
 }
 var screenshotPubSub = new ScreenshotPubSub(pubsub_options);
 
+/* !!!!!!Probably still need these to kill phantom the brutal way
+// Get all running phantom pids
+function getAllPhantomPIDs() {
+    var pids = [];
+    try {
+        var stdout = execSync('pgrep phantom').toString();
+        var processIds = stdout.split('\n');
+       for (var i = 0; i < processIds.length; i ++) {
+            if (processIds[i] !== '') {
+                pids.push(parseInt(processIds[i]));
+            }
+        }
+       return pids;
+    } catch(err) {
+        return pids;
+    }
+}
+
+// Get process elapsed time in seconds given pid
+function getProcessElapsedTime(pid) {
+    try {
+        var stdout = execSync(`ps -o etimes= -p ${pid}`);
+        return parseInt(stdout);
+    } catch(err) {
+        // No such pid
+        return -1;
+    }
+}
+
+function killProcess(pid) {
+    try {
+        var stdout = execSync(`kill ${pid}`);
+        return 0;
+    } catch(err) {
+        // No such pid
+        return -1; 
+    }
+}
+*/
+
 /**
  * Screenshot message are saved in redis as a string with the following format:
  * `websiteUrl:http://some-url.com,pid:123x56,crgId:7891b`. This function parses
@@ -92,6 +132,7 @@ screenshotPubSub.subscriptions[topic](function(err, subscription) {
     // message listener
     subscription.on('message', function(message) {
         var websiteInfo = message.attributes;
+        message.ack();
         var messageString = `websiteUrl:${websiteInfo.websiteUrl},pid:${websiteInfo.pid},crgId:${websiteInfo.crgId}`;
         logger.info(`Received ${topic} message to capture screenshot: ------ ${messageString}`);
         if (numberOfPhantoms < MAX_NUMBER_PHANTOM_INSTANCES) {
@@ -118,3 +159,4 @@ screenshotPubSub.subscriptions[topic](function(err, subscription) {
         logger.error(`Error subscribing to ${topic} topic, will not be able to receive signals until this is fixed. Error message: ${errorString}`);
     });
 });
+*/
