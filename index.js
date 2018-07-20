@@ -159,4 +159,3 @@ screenshotPubSub.subscriptions[topic](function(err, subscription) {
         logger.error(`Error subscribing to ${topic} topic, will not be able to receive signals until this is fixed. Error message: ${errorString}`);
     });
 });
-*/
