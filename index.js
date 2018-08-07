@@ -16,13 +16,13 @@ var redis = require('redis'),
 promise.promisifyAll(redis.RedisClient.prototype);
 
 /**
- * The allowed maximum number of phantomjs instances running concurrently 
+ * The allowed maximum number of chromium instances running concurrently 
  */
-const MAX_NUMBER_PHANTOM_INSTANCES = 5;
+const MAX_NUMBER_CHROMIUM_INSTANCES = 5;
 /**
- * The number of currently running phantomjs instances
+ * The number of currently running chromium instances
  */
-var numberOfPhantoms = 0;
+var numberOfChromiums = 0;
 
 
 /* ---------------- SCREENSHOT PUBSUB INSTANCE & LISTENERS ----------------- */
@@ -61,9 +61,9 @@ function parseScreenshotMessageFromRedis(messageString) {
 
 var EventEmitter = require('events');
 var emitter = new EventEmitter();
-// `FINISH` event will be emitted when a phantom instance exists
+// `FINISH` event will be emitted when a chromium instance exists
 emitter.on('FINISH', function() {
-    if (numberOfPhantoms < MAX_NUMBER_PHANTOM_INSTANCES) {
+    if (numberOfChromiums < MAX_NUMBER_CHROMIUM_INSTANCES) {
         // Retrieve a screenshot message from redis, 
         // after rpop command, the message will be removed from 
         // redis `${topic}` list automatically
@@ -72,10 +72,10 @@ emitter.on('FINISH', function() {
             if (messageString) {
                 var fetchedMessage = parseScreenshotMessageFromRedis(messageString);
                 logger.info(`Message fetched and removed: ------ ${messageString}`);
-                numberOfPhantoms ++;
+                numberOfChromiums ++;
                 return crawler.captureScreen(fetchedMessage, appRoot, db)
                 .then(function() {
-                    numberOfPhantoms --;
+                    numberOfChromiums --;
                     logger.info(`Finished crawling for the following message: ${messageString}`);
                     emitter.emit('FINISH');
                 });
@@ -92,18 +92,19 @@ screenshotPubSub.subscriptions[topic](function(err, subscription) {
     // message listener
     subscription.on('message', function(message) {
         var websiteInfo = message.attributes;
+        message.ack();
         var messageString = `websiteUrl:${websiteInfo.websiteUrl},pid:${websiteInfo.pid},crgId:${websiteInfo.crgId}`;
         logger.info(`Received ${topic} message to capture screenshot: ------ ${messageString}`);
-        if (numberOfPhantoms < MAX_NUMBER_PHANTOM_INSTANCES) {
-            numberOfPhantoms ++;
+        if (numberOfChromiums < MAX_NUMBER_CHROMIUM_INSTANCES) {
+            numberOfChromiums ++;
             return crawler.captureScreen(websiteInfo, appRoot, db)
             .then(function() {
-                numberOfPhantoms --;
+                numberOfChromiums --;
                 logger.info(`${messageString} FINISHED crawling`);
                 emitter.emit('FINISH'); 
             });
         } else {
-            logger.info(`Reached maximum allowed phantom instances, save the following message and handle it later: ------ ${messageString}`);
+            logger.info(`Reached maximum allowed chromium instances, save the following message and handle it later: ------ ${messageString}`);
             // Save screenshot message to redis in a LIST named `${topic}`
             return client.lpushAsync(`${topic}`, `${messageString}`);
         }
