@@ -8,12 +8,14 @@ const node_utils = require('@cliques/cliques-node-utils'),
     config = require('config'),
     appRoot = path.resolve(__dirname),
     crawler = require('./lib/crawler.js'),
-    promise = require('bluebird'),
+    {promisify} = require('util'),
+    EventEmitter = require('events'),
     db = require('./lib/connections').EXCHANGE_CONNECTION;
 
 const redis = require('redis'),
-    client = redis.createClient();
-promise.promisifyAll(redis.RedisClient.prototype);
+    client = redis.createClient(),
+    rpopAsync = promisify(client.rpop).bind(client),
+    lpushAsync = promisify(client.lpush).bind(client);
 
 const puppeteer = require('puppeteer');
 
@@ -44,7 +46,8 @@ if (process.env.NODE_ENV == 'local-test') {
 } else {
     pubsub_options = { projectId: projectId };
 }
-var screenshotPubSub = new ScreenshotPubSub(pubsub_options);
+const screenshotPubSub = new ScreenshotPubSub(pubsub_options),
+    subscriptionsAsync = promisify(screenshotPubSub.subscriptions[topic]);
 
 /**
  * Screenshot message are saved in redis as a string with the following format:
@@ -62,61 +65,51 @@ function parseScreenshotMessageFromRedis(messageString) {
     return message;
 }
 
-return puppeteer.launch({
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
-})
-.then(chromiumBrowser => {
-    const EventEmitter = require('events');
-    var emitter = new EventEmitter();
-    // `FINISH` event will be emitted when a chromium instance exists
-    emitter.on('FINISH', function() {
-        if (numberOfChromiums < MAX_NUMBER_CHROMIUM_INSTANCES) {
-            // Retrieve a screenshot message from redis, 
-            // after rpop command, the message will be removed from 
-            // redis `${topic}` list automatically
-            return client.rpopAsync(`${topic}`)
-            .then(function(messageString) {
+(async () => {
+    try {
+        const chromiumBrowser = await puppeteer.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+        let emitter = new EventEmitter();
+        // `FINISH` event will be emitted when a chromium instance exists
+        emitter.on('FINISH', async () => {
+            if (numberOfChromiums < MAX_NUMBER_CHROMIUM_INSTANCES) {
+                // Retrieve a screenshot message from redis, 
+                // after rpop command, the message will be removed from 
+                // redis `${topic}` list automatically
+                const messageString = await rpopAsync(`${topic}`);
                 if (messageString) {
-                    var fetchedMessage = parseScreenshotMessageFromRedis(messageString);
+                    const fetchedMessage = parseScreenshotMessageFromRedis(messageString);
                     logger.info(`Message fetched and removed: ------ ${messageString}`);
                     numberOfChromiums ++;
-                    return crawler.captureScreen(fetchedMessage, appRoot, db, chromiumBrowser)
-                    .then(function() {
-                        numberOfChromiums --;
-                        logger.info(`Finished crawling for the following message: ${messageString}`);
-                        emitter.emit('FINISH');
-                    });
-                }
-            });
-        }
-    });
 
-    screenshotPubSub.subscriptions[topic](function(err, subscription) {
-        if (err) {
-            logger.error(`Error creating subscription to ${topic} topic: ${err}`);
-            throw new Error(`Error creating subscription to ${topic} topic: ${err}`);
-        }
+                    await crawler.captureScreen(fetchedMessage, appRoot, db, chromiumBrowser);
+                    numberOfChromiums --;
+                    logger.info(`Finished crawling for the following message: ${messageString}`);
+                    emitter.emit('FINISH');
+                }
+            }
+        });
+
+        const subscription = await subscriptionsAsync();
         // message listener
-        subscription.on('message', function(message) {
+        subscription.on('message', async (message) => {
             var websiteInfo = message.attributes;
             message.ack();
             var messageString = `websiteUrl:${websiteInfo.websiteUrl},pid:${websiteInfo.pid},crgId:${websiteInfo.crgId}`;
             logger.info(`Received ${topic} message to capture screenshot: ------ ${messageString}`);
             if (numberOfChromiums < MAX_NUMBER_CHROMIUM_INSTANCES) {
                 numberOfChromiums ++;
-                return crawler.captureScreen(websiteInfo, appRoot, db, chromiumBrowser)
-                .then(function() {
-                    numberOfChromiums --;
-                    logger.info(`${messageString} FINISHED crawling`);
-                    emitter.emit('FINISH'); 
-                });
+                await crawler.captureScreen(websiteInfo, appRoot, db, chromiumBrowser);
+
+                numberOfChromiums --;
+                logger.info(`${messageString} FINISHED crawling`);
+                emitter.emit('FINISH'); 
             } else {
                 logger.info(`Reached maximum allowed chromium instances, save the following message and handle it later: ------ ${messageString}`);
                 // Save screenshot message to redis in a LIST named `${topic}`
-                return client.lpushAsync(`${topic}`, `${messageString}`);
+                await lpushAsync(`${topic}`, `${messageString}`);
             }
         });
-        subscription.on('error', function(err) {
+        subscription.on('error', (err) => {
             var errorString;
             if (typeof err === 'string') {
                 errorString = err;
@@ -125,6 +118,7 @@ return puppeteer.launch({
             }
             logger.error(`Error subscribing to ${topic} topic, will not be able to receive signals until this is fixed. Error message: ${errorString}`);
         });
-    });
-});
-
+    } catch(err) {
+        logger.error(err);
+    }
+})();
