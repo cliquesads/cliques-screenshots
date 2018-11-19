@@ -108,34 +108,12 @@ function parseScreenshotMessageFromRedis(messageString) {
     return message;
 }
 
-// ycx!!!!!!
-/*
-(async() => {
-    var websiteInfo = {
-        // websiteUrl: 'https://www.jetsetter.com/magazine/the-best-walking-shoes-for-women/',
-        // pid: '5a1da639fd036a622ac66f6f',
-        // crgId: '5bd86b3881d8242478b9a485'
-        // websiteUrl: 'https://www.smartertravel.com/tips-rochester-warnings-dangers-stay-safe/',
-        // pid: '59dd1bf7d2d6b76dfb5e9635',
-        // crgId: '5aa1aee55cc72143f9b802dc'
-        websiteUrl: 'https://www.jetsetter.com/magazine/packing-tips-you-need-to-know/?source=115966&u=B7HS5HEOIN&nltv=&nl_cs=50916767%3A%3A%3A%3A%3A%3A&mcid=57485',
-        pid: '5a1da639fd036a622ac66f6f',
-        crgId: '5bd86b3881d8242478b9a485'
-    };
-    const chromiumBrowser = await puppeteer.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
-    await crawler.captureScreen(websiteInfo, appRoot, db, chromiumBrowser);
-})();
-*/
-// end of ycx!!!!!!
-
-// ycx!!!!!!
 (async () => {
     try {
         const chromiumBrowser = await puppeteer.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
         // `FINISH` event will be emitted when a chromium instance exists
         emitter.on('FINISH', async () => {
             var numberOfChromiums = getNumberOfChromeInstances();
-            console.log(`---====== inside on FINISH, numberOfChromiums: ${numberOfChromiums}`);
             if (numberOfChromiums < MAX_NUMBER_CHROMIUM_INSTANCES) {
                 // Retrieve a screenshot message from redis, 
                 // after rpop command, the message will be removed from 
@@ -144,7 +122,6 @@ function parseScreenshotMessageFromRedis(messageString) {
                 if (messageString) {
                     const fetchedMessage = parseScreenshotMessageFromRedis(messageString);
                     logger.info(`Message fetched and removed: ------ ${messageString}`);
-
                     await crawler.captureScreen(fetchedMessage, appRoot, db, chromiumBrowser);
                     logger.info(`Finished crawling for the following message: ${messageString}`);
                     emitter.emit('FINISH');
@@ -160,7 +137,6 @@ function parseScreenshotMessageFromRedis(messageString) {
             var messageString = `websiteUrl:${websiteInfo.websiteUrl},pid:${websiteInfo.pid},crgId:${websiteInfo.crgId}`;
             logger.info(`Received ${topic} message to capture screenshot: ------ ${messageString}`);
             var numberOfChromiums = getNumberOfChromeInstances();
-            console.log(`---====== inside on message, numberOfChromiums: ${numberOfChromiums}`);
             if (numberOfChromiums < MAX_NUMBER_CHROMIUM_INSTANCES) {
                 await crawler.captureScreen(websiteInfo, appRoot, db, chromiumBrowser);
                 logger.info(`${messageString} FINISHED crawling`);
