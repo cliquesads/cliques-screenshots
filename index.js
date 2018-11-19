@@ -17,17 +17,11 @@ const redis = require('redis'),
     rpopAsync = promisify(client.rpop).bind(client),
     lpushAsync = promisify(client.lpush).bind(client);
 
-const puppeteer = require('puppeteer');
-
-/**
- * The allowed maximum number of chromium instances running concurrently 
- */
-const MAX_NUMBER_CHROMIUM_INSTANCES = 20;
-/**
- * The maximum elapsed time in seconds allowed for a chromium instance
- */
-const MAX_HANGING_SECONDS = 1800;
-const INSTANCE_NAME = 'chrome';
+const puppeteer = require('puppeteer'),
+    openPageTimeoutInMilliSec = config.get('Screenshots.phantomOpenPageTimeoutInSec') * 30000,
+    userAgentString = config.get('Screenshots.userAgent'),
+    clipWidth = config.get('Screenshots.clipWidth'),
+    clipHeight = config.get('Screenshots.clipHeight');
 
 /* ---------------- SCREENSHOT PUBSUB INSTANCE & LISTENERS ----------------- */
 
@@ -50,48 +44,6 @@ const screenshotPubSub = new ScreenshotPubSub(pubsub_options),
 
 let emitter = new EventEmitter();
 
-function getNumberOfChromeInstances() {
-    const execSync = require('child_process').execSync;
-    try {
-        var n = execSync(`pgrep -c ${INSTANCE_NAME}`).toString();
-        return n;
-    } catch(err) {
-        return -1;
-    }
-}
-
-/**
- * handleChromeInstances checks if any of the chrome instance has been hanging 
- * for too long and kill the overtime chrome instance if any
- */
-function handleChromeInstances() {
-    const execSync = require('child_process').execSync;
-    try {
-        var temp = execSync(`pgrep ${INSTANCE_NAME}`).toString();
-        var pidList = temp.split('\n');
-        for (var i = 0; i < pidList.length; i ++) {
-            if (pidList[i] !== '') {
-                var elapsedSeconds = execSync(`ps -p ${pidList[i]} -o etimes`).toString();
-                elapsedSeconds = elapsedSeconds.replace('ELAPSED', '').trim();
-                elapsedSeconds = parseInt(elapsedSeconds, 10);
-                if (elapsedSeconds > MAX_HANGING_SECONDS) {
-                    execSync(`kill ${pidList[i]}`);
-                    emitter.emit('FINISH');
-                }
-            }
-        }
-    } catch(err) {
-        return null;
-    }
-}
-
-setInterval(() => {
-    var numberOfChromiums = getNumberOfChromeInstances();
-    if (numberOfChromiums >= MAX_NUMBER_CHROMIUM_INSTANCES) {
-        handleChromeInstances();
-    }
-}, 1000);
-
 /**
  * Screenshot message are saved in redis as a string with the following format:
  * `websiteUrl:http://some-url.com,pid:123x56,crgId:7891b`. This function parses
@@ -108,24 +60,42 @@ function parseScreenshotMessageFromRedis(messageString) {
     return message;
 }
 
+var crawling = false;
 (async () => {
     try {
         const chromiumBrowser = await puppeteer.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
-        // `FINISH` event will be emitted when a chromium instance exists
-        emitter.on('FINISH', async () => {
-            var numberOfChromiums = getNumberOfChromeInstances();
-            if (numberOfChromiums < MAX_NUMBER_CHROMIUM_INSTANCES) {
-                // Retrieve a screenshot message from redis, 
-                // after rpop command, the message will be removed from 
-                // redis `${topic}` list automatically
-                const messageString = await rpopAsync(`${topic}`);
-                if (messageString) {
-                    const fetchedMessage = parseScreenshotMessageFromRedis(messageString);
-                    logger.info(`Message fetched and removed: ------ ${messageString}`);
-                    await crawler.captureScreen(fetchedMessage, appRoot, db, chromiumBrowser);
-                    logger.info(`Finished crawling for the following message: ${messageString}`);
-                    emitter.emit('FINISH');
-                }
+        var puppeteerPage = await chromiumBrowser.newPage();
+        // setup crawler
+        if (process.env.NODE_ENV !== 'production') {
+            // turn on chrome log for dev/local-test only
+            puppeteerPage.on('console', msg => console.log('PUPPETEER LOG: ' , msg.text()));
+        }
+        await puppeteerPage.setViewport({
+            width: clipWidth,
+            height: clipHeight
+        });
+        await puppeteerPage.setUserAgent(userAgentString);
+        await puppeteerPage.setDefaultNavigationTimeout(openPageTimeoutInMilliSec);
+
+        setInterval(() => {
+            if (!crawling) {
+                emitter.emit('CANCRAWL');
+            }
+        }, 1000);
+
+        // `CANCRAWL` event will be emitted when a chromium page has finished crawling
+        emitter.on('CANCRAWL', async () => {
+            // Retrieve a screenshot message from redis, 
+            // after rpop command, the message will be removed from 
+            // redis `${topic}` list automatically
+            const messageString = await rpopAsync(`${topic}`);
+            if (messageString) {
+                const fetchedMessage = parseScreenshotMessageFromRedis(messageString);
+                logger.info(`Message fetched and removed: ------ ${messageString}`);
+                crawling = true;
+                await crawler.captureScreen(fetchedMessage, appRoot, db, puppeteerPage);
+                crawling = false;
+                logger.info(`Finished crawling for the following message: ${messageString}`);
             }
         });
 
@@ -136,11 +106,11 @@ function parseScreenshotMessageFromRedis(messageString) {
             message.ack();
             var messageString = `websiteUrl:${websiteInfo.websiteUrl},pid:${websiteInfo.pid},crgId:${websiteInfo.crgId}`;
             logger.info(`Received ${topic} message to capture screenshot: ------ ${messageString}`);
-            var numberOfChromiums = getNumberOfChromeInstances();
-            if (numberOfChromiums < MAX_NUMBER_CHROMIUM_INSTANCES) {
-                await crawler.captureScreen(websiteInfo, appRoot, db, chromiumBrowser);
+            if (!crawling) {
+                crawling = true;
+                await crawler.captureScreen(websiteInfo, appRoot, db, puppeteerPage);
+                crawling = false;
                 logger.info(`${messageString} FINISHED crawling`);
-                emitter.emit('FINISH'); 
             } else {
                 logger.info(`Reached maximum allowed chromium instances, save the following message and handle it later: ------ ${messageString}`);
                 // Save screenshot message to redis in a LIST named `${topic}`
